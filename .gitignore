@@ -11,12 +11,16 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+__pycache__/
+.venv/
+
 # env
 .env
 .env.*
 !.env.example
 
 # editor/OS
+.idea/
 .vscode/
 .DS_Store
 Thumbs.db
