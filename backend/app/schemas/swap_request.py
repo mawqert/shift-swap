@@ -5,19 +5,19 @@ from app.schemas.user import UserResponse
 from app.schemas.shift import ShiftResponse
 
 
-class SwapRequestBase(BaseSchema):
+class SwapRequestCreate(BaseSchema):
     requester_shift_id: int
     target_shift_id: int
+
+
+class SwapRequestAction(BaseSchema):
+    accept: bool
+
+
+class SwapRequestResponse(SwapRequestCreate):
+    id: int
     requester_user_id: int
     target_user_id: int
-
-
-class SwapRequestCreate(SwapRequestBase):
-    pass
-
-
-class SwapRequestResponse(SwapRequestBase):
-    id: int
     status: SwapRequestStatus
     manager_id: int | None = None
     created_at: datetime

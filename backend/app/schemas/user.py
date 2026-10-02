@@ -7,8 +7,15 @@ class UserBase(BaseSchema):
     full_name: str
     role: Role = Role.EMPLOYEE
 
+
 class UserCreate(UserBase):
     password: str
+
+
+class UserLogin(BaseSchema):
+    email: EmailStr
+    password: str
+
 
 class UserResponse(UserBase):
     id: int
