@@ -4,6 +4,7 @@ import {
   SwapOutlined,
   CheckSquareOutlined,
   HistoryOutlined,
+  PlusCircleOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 
@@ -18,6 +19,7 @@ export default function AppLayout() {
     { key: '/schedule', icon: <CalendarOutlined />, label: 'График дежурств' },
     { key: '/requests', icon: <SwapOutlined />, label: 'Мои запросы' },
     { key: '/manager', icon: <CheckSquareOutlined />, label: 'Подтверждение менеджером' },
+    { key: '/create-shift', icon: <PlusCircleOutlined />, label: 'Создать смену' },
     { key: '/history', icon: <HistoryOutlined />, label: 'История замен' },
   ];
 
