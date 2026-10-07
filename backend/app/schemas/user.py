@@ -19,3 +19,16 @@ class UserLogin(BaseSchema):
 
 class UserResponse(UserBase):
     id: int
+
+
+class TokenPair(BaseSchema):
+    access_token: str
+    refresh_token: str
+
+
+class TokenPairWithUser(TokenPair):
+    user: UserResponse
+
+
+class RefreshRequest(BaseSchema):
+    refresh_token: str

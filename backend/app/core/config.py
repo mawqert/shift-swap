@@ -32,5 +32,7 @@ class Config(BaseSettings):
     )
 
     POSTGRES: PostgresSettings
+    JWT_ACCESS_SECRET: str
+    JWT_REFRESH_SECRET: str
 
 app_config = Config()
