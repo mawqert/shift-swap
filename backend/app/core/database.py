@@ -6,7 +6,8 @@ from app.core.config import app_config
 
 engine = create_engine(
     url=app_config.POSTGRES.url,
-    echo=False
+    echo=False,
+    pool_pre_ping=True
 )
 
 SessionLocal = sessionmaker(bind=engine)
