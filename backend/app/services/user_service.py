@@ -28,3 +28,6 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
     if not user or not pwd_context.verify(password, user.hashed_password):
         return None
     return user
+
+def get_all_employees(db: Session) -> list[User]:
+    return db.execute(select(User).where(User.role == "EMPLOYEE")).scalars().all()
