@@ -1,34 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Form, Select, DatePicker, Button, message, Space, Typography } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import type { User } from '@/entities/user/types';
 import type { ShiftWithUser } from '@/entities/shift/types';
+import { api } from '@/shared/api/api';
 
 dayjs.extend(isBetween);
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
-
-const mockEmployees: User[] = [
-  { id: 101, email: 'ivanov@test.com', fullName: 'Иванов Иван', role: 'EMPLOYEE' },
-  { id: 102, email: 'petrov@test.com', fullName: 'Петров Петр', role: 'EMPLOYEE' },
-  { id: 103, email: 'sidorov@test.com', fullName: 'Сидоров Сидор', role: 'EMPLOYEE' },
-  { id: 104, email: 'sidelnikov@test.com', fullName: 'Сидельников Антон', role: 'EMPLOYEE' },
-  { id: 105, email: 'smirnov@test.com', fullName: 'Смирнов Алексей', role: 'EMPLOYEE' },
-  { id: 106, email: 'kuznetsov@test.com', fullName: 'Кузнецов Михаил', role: 'EMPLOYEE' },
-  { id: 107, email: 'popov@test.com', fullName: 'Попов Дмитрий', role: 'EMPLOYEE' },
-  { id: 108, email: 'vasiliev@test.com', fullName: 'Васильев Василий', role: 'EMPLOYEE' },
-];
-
-const mockExistingShifts: ShiftWithUser[] = [
-  {
-    id: 1,
-    userId: 101,
-    startTime: dayjs().add(1, 'day').hour(9).minute(0).second(0).format(),
-    endTime: dayjs().add(1, 'day').hour(21).minute(0).second(0).format(),
-  }
-];
 
 interface FormValues {
   userId: number;
@@ -40,6 +21,32 @@ export function CreateShiftForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [searchValue, setSearchValue] = useState('');
+  
+  const [employees, setEmployees] = useState<User[]>([]);
+  const [existingShifts, setExistingShifts] = useState<ShiftWithUser[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoadingData(true);
+      try {
+        const [usersRes, shiftsRes] = await Promise.all([
+          api.get('/users'),
+          api.get('/shifts')
+        ]);
+        
+        setEmployees(usersRes.data);
+        setExistingShifts(shiftsRes.data);
+      } catch (error) {
+        message.error('Не удалось загрузить данные для формы');
+        console.error(error);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const validateShiftOverlap = (_: any, value: [Dayjs, Dayjs]) => {
     if (!value || value.length !== 2) return Promise.resolve();
@@ -49,7 +56,7 @@ export function CreateShiftForm() {
 
     if (!selectedUserId) return Promise.resolve(); 
 
-    const userShifts = mockExistingShifts.filter(shift => shift.userId === selectedUserId);
+    const userShifts = existingShifts.filter(shift => shift.userId === selectedUserId);
 
     for (const shift of userShifts) {
       const existingStart = dayjs(shift.startTime);
@@ -74,24 +81,35 @@ export function CreateShiftForm() {
     
     const payload = {
       userId: values.userId,
-      startTime: values.timeRange[0].format(),
-      endTime: values.timeRange[1].format(),
+      startTime: values.timeRange[0].toISOString(),
+      endTime: values.timeRange[1].toISOString(),
     };
 
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const response = await api.post('/shifts', payload); 
+      
       message.success('Смена успешно создана!');
       form.resetFields(); 
       setSearchValue('');
-    }, 800);
+      
+      setExistingShifts(prev => [...prev, response.data]);
+      
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.detail || 'Ошибка при создании смены';
+      message.error(errorMsg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const filteredOptions = mockEmployees
-    .filter(emp => emp.fullName.toLowerCase().includes(searchValue.toLowerCase()))
-    .map(emp => ({
-      value: emp.id,
-      label: emp.fullName
-    }));
+  const filteredOptions = useMemo(() => {
+    return employees
+      .filter(emp => emp.fullName.toLowerCase().includes(searchValue.toLowerCase()))
+      .map(emp => ({
+        value: emp.id,
+        label: emp.fullName
+      }));
+  }, [employees, searchValue]);
 
   return (
     <div style={{ background: '#fff', padding: '24px', borderRadius: '8px', maxWidth: '600px' }}>
@@ -116,7 +134,9 @@ export function CreateShiftForm() {
             onSearch={(value) => setSearchValue(value)}
             onBlur={() => setSearchValue('')}
             options={filteredOptions}
-            onChange={() => form.validateFields(['timeRange'])} 
+            onChange={() => form.validateFields(['timeRange'])}
+            loading={isLoadingData}
+            disabled={isLoadingData}
           />
         </Form.Item>
 
@@ -134,12 +154,13 @@ export function CreateShiftForm() {
             format="YYYY-MM-DD HH:mm"
             style={{ width: '100%' }}
             placeholder={['Начало смены', 'Конец смены']}
+            disabled={isLoadingData}
           />
         </Form.Item>
 
         <Form.Item style={{ marginTop: '32px', marginBottom: 0 }}>
           <Space>
-            <Button type="primary" htmlType="submit" loading={isSubmitting}>
+            <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isLoadingData}>
               Создать смену
             </Button>
             <Button htmlType="button" onClick={() => {

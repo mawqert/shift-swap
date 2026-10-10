@@ -1,16 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Typography, Button, Space, Card, Empty } from 'antd';
 import { LeftOutlined, RightOutlined, SwapOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ru';
 import type { ShiftWithUser } from '@/entities/shift/types';
+import type { User } from '@/entities/user/types';
 import { CreateSwapRequestModal } from '@/features/swap-request/ui/CreateSwapRequestModal';
+import { api } from '@/shared/api/api';
 
 dayjs.locale('ru');
 
 const { Title, Text } = Typography;
 
 export default function SchedulePage() {
+  const [shifts, setShifts] = useState<ShiftWithUser[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  
+  const [usersList, setUsersList] = useState<User[]>([]);
+  
   const today = dayjs();
   const [selectedDate, setSelectedDate] = useState(today);
   const [weekStart, setWeekStart] = useState(today.startOf('week'));
@@ -18,31 +25,41 @@ export default function SchedulePage() {
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
   const [selectedTargetShift, setSelectedTargetShift] = useState<ShiftWithUser | null>(null);
 
-  const currentUserId = 101;
+  useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const response = await api.get('/users/me');
+        setCurrentUser(response.data);
+      } catch (error) {
+        console.error('Ошибка получения юзера', error);
+      }
+    };
+    
+    const fetchUsers = async () => {
+      try {
+        const response = await api.get('/users');
+        setUsersList(response.data);
+      } catch (error) {
+        console.error('Ошибка получения списка юзеров', error);
+      }
+    };
+    
+    const fetchShifts = async () => {
+      try {
+        const response = await api.get('/shifts');
+        setShifts(response.data);
+      } catch (error) {
+         console.error('Ошибка получения смен', error);
+      }
+    };
 
-  const mockShifts: ShiftWithUser[] = [
-    { 
-      id: 1, 
-      userId: 101,
-      user: { id: 101, email: 'ivanov@test.com', fullName: 'Иванов Иван (Вы)', role: 'EMPLOYEE' }, 
-      startTime: today.hour(9).minute(0).second(0).format(),
-      endTime: today.hour(21).minute(0).second(0).format()
-    },
-    { 
-      id: 3, 
-      userId: 101,
-      user: { id: 101, email: 'ivanov@test.com', fullName: 'Иванов Иван (Вы)', role: 'EMPLOYEE' }, 
-      startTime: today.add(2, 'day').hour(9).minute(0).second(0).format(),
-      endTime: today.add(2, 'day').hour(21).minute(0).second(0).format()
-    },
-    { 
-      id: 2, 
-      userId: 102,
-      user: { id: 102, email: 'petrov@test.com', fullName: 'Петров Петр', role: 'EMPLOYEE' }, 
-      startTime: today.add(1, 'day').hour(9).minute(0).second(0).format(),
-      endTime: today.add(1, 'day').hour(21).minute(0).second(0).format()
-    }
-  ];
+    fetchMe();
+    fetchUsers();
+    fetchShifts();
+  }, []);
+
+  const currentUserId = currentUser?.id;
+  const isManager = currentUser?.role === 'MANAGER';
 
   const prevWeek = () => setWeekStart(weekStart.subtract(1, 'week'));
   const nextWeek = () => setWeekStart(weekStart.add(1, 'week'));
@@ -50,7 +67,7 @@ export default function SchedulePage() {
   const weekDays = Array.from({ length: 7 }).map((_, i) => weekStart.add(i, 'day'));
   const selectedDateString = selectedDate.format('YYYY-MM-DD');
   
-  const dailyShifts = mockShifts.filter(shift => 
+  const dailyShifts = shifts.filter(shift => 
     shift.startTime.startsWith(selectedDateString)
   );
 
@@ -68,7 +85,6 @@ export default function SchedulePage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Title level={2} style={{ marginTop: 0 }}>Общий график дежурств</Title>
       
       <div style={{ 
         display: 'flex', 
@@ -126,6 +142,18 @@ export default function SchedulePage() {
             {dailyShifts.map(shift => {
               const isMyShift = shift.userId === currentUserId;
               
+              const shiftOwner = shift.user || usersList.find(u => u.id === shift.userId);
+              
+              let employeeName = shiftOwner?.fullName || (shiftOwner as any)?.full_name;
+
+              if (!employeeName && isMyShift) {
+                employeeName = currentUser?.fullName;
+              }
+
+              employeeName = employeeName || `Сотрудник (ID: ${shift.userId})`;
+
+              const displayName = isMyShift ? `${employeeName} (Вы)` : employeeName;
+              
               return (
                 <Card 
                   key={shift.id} 
@@ -136,13 +164,14 @@ export default function SchedulePage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <Title level={5} style={{ margin: 0, marginBottom: '4px' }}>
-                        {shift.user?.fullName}
+                        {displayName}
                       </Title>
                       <Text type="secondary">
                         {dayjs(shift.startTime).format('HH:mm')} – {dayjs(shift.endTime).format('HH:mm')}
                       </Text>
                     </div>
-                    {!isMyShift && (
+                    
+                    {!isMyShift && !isManager && (
                       <Button 
                         type="default" 
                         icon={<SwapOutlined />} 

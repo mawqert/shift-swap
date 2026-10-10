@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Modal, Form, Select, message, Spin, Typography } from 'antd';
 import dayjs from 'dayjs';
 import type { ShiftWithUser } from '@/entities/shift/types';
+import { api } from '@/shared/api/api';
 
 const { Text } = Typography;
 
@@ -17,31 +18,29 @@ export function CreateSwapRequestModal({ isOpen, onClose, targetShift }: CreateS
   const [isLoadingMyShifts, setIsLoadingMyShifts] = useState(false);
   const [myShifts, setMyShifts] = useState<ShiftWithUser[]>([]);
 
-  const currentUserId = 101; 
-
   useEffect(() => {
-    if (isOpen && targetShift) {
+    const fetchMyShifts = async () => {
       setIsLoadingMyShifts(true);
-      setTimeout(() => {
-        const mockMyShifts: ShiftWithUser[] = [
-          {
-            id: 10,
-            userId: 101,
-            startTime: dayjs().add(3, 'day').hour(9).minute(0).second(0).format(),
-            endTime: dayjs().add(3, 'day').hour(21).minute(0).second(0).format(),
-          },
-          {
-            id: 11,
-            userId: 101,
-            startTime: dayjs().add(5, 'day').hour(9).minute(0).second(0).format(),
-            endTime: dayjs().add(5, 'day').hour(21).minute(0).second(0).format(),
-          }
-        ];
-        setMyShifts(mockMyShifts);
+      try {
+        const userRes = await api.get('/users/me');
+        const currentUserId = userRes.data.id;
+
+        const shiftsRes = await api.get('/shifts/user/' + currentUserId);
+        
+        setMyShifts(shiftsRes.data);
+      } catch (error: any) {
+        console.error(error);
+        message.error('Не удалось загрузить ваши смены');
+      } finally {
         setIsLoadingMyShifts(false);
-      }, 500);
+      }
+    };
+
+    if (isOpen && targetShift) {
+      fetchMyShifts();
     } else {
       form.resetFields();
+      setMyShifts([]);
     }
   }, [isOpen, targetShift, form]);
 
@@ -55,11 +54,17 @@ export function CreateSwapRequestModal({ isOpen, onClose, targetShift }: CreateS
       targetShiftId: targetShift.id
     };
 
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await api.post('/swap-requests', payload); 
+      
       message.success('Запрос на замену успешно отправлен');
       onClose();
-    }, 1000);
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.detail || 'Ошибка при отправке запроса';
+      message.error(errorMsg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

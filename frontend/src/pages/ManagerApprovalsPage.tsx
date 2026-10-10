@@ -1,59 +1,64 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Table, Typography, Button, Space, message, Tag } from 'antd';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ru';
-import type { SwapRequestDetails, SwapRequestStatus } from '@/entities/swap-request/types';
+import type { SwapRequestDetails } from '@/entities/swap-request/types';
+import { api } from '@/shared/api/api';
 
 dayjs.locale('ru');
 
 const { Title } = Typography;
 
 export default function ManagerApprovalsPage() {
-  const today = dayjs();
+  const [requests, setRequests] = useState<SwapRequestDetails[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [requests, setRequests] = useState<SwapRequestDetails[]>([
-    {
-      id: 1,
-      requesterUserId: 101,
-      targetUserId: 103,
-      requesterUser: { id: 101, email: 'ivanov@test.com', fullName: 'Иванов Иван', role: 'EMPLOYEE' },
-      targetUser: { id: 103, email: 'sidorov@test.com', fullName: 'Сидоров Сидор', role: 'EMPLOYEE' },
-      requesterShiftId: 201,
-      targetShiftId: 202,
-      requesterShift: { id: 201, userId: 101, startTime: today.add(1, 'day').hour(9).minute(0).format(), endTime: today.add(1, 'day').hour(21).minute(0).format() },
-      targetShift: { id: 202, userId: 103, startTime: today.add(2, 'day').hour(9).minute(0).format(), endTime: today.add(2, 'day').hour(21).minute(0).format() },
-      status: 'PENDING_MANAGER',
-      managerId: null,
-      createdAt: today.subtract(2, 'hour').format(),
-    },
-    {
-      id: 2,
-      requesterUserId: 104,
-      targetUserId: 105,
-      requesterUser: { id: 104, email: 'smirnov@test.com', fullName: 'Смирнов Алексей', role: 'EMPLOYEE' },
-      targetUser: { id: 105, email: 'kuznetsov@test.com', fullName: 'Кузнецов Михаил', role: 'EMPLOYEE' },
-      requesterShiftId: 203,
-      targetShiftId: 204,
-      requesterShift: { id: 203, userId: 104, startTime: today.add(7, 'day').hour(8).minute(0).format(), endTime: today.add(7, 'day').hour(20).minute(0).format() },
-      targetShift: { id: 204, userId: 105, startTime: today.add(8, 'day').hour(8).minute(0).format(), endTime: today.add(8, 'day').hour(20).minute(0).format() },
-      status: 'PENDING_MANAGER',
-      managerId: null,
-      createdAt: today.subtract(1, 'day').format(),
-    }
-  ]);
+  const fetchActiveRequests = async () => {
+    setIsLoading(true);
+    try {
+      const [requestsRes, usersRes, shiftsRes] = await Promise.all([
+        api.get('/swap-requests/manager/active'),
+        api.get('/users'),
+        api.get('/shifts')
+      ]);
 
-  const handleDecision = (id: number, decision: SwapRequestStatus) => {
-    setRequests(prev => prev.filter(req => req.id !== id));
-    
-    if (decision === 'APPROVED') {
-      message.success('Обмен сменами успешно одобрен');
-    } else {
-      message.warning('Обмен сменами отклонен');
+      const users = usersRes.data;
+      const shifts = shiftsRes.data;
+
+      const enrichedRequests = requestsRes.data.map((req: any) => ({
+        ...req,
+        requesterUser: req.requesterUser || users.find((u: any) => u.id === req.requesterUserId),
+        targetUser: req.targetUser || users.find((u: any) => u.id === req.targetUserId),
+        requesterShift: req.requesterShift || shifts.find((s: any) => s.id === req.requesterShiftId),
+        targetShift: req.targetShift || shifts.find((s: any) => s.id === req.targetShiftId),
+      }));
+
+      setRequests(enrichedRequests);
+    } catch (error) {
+      console.error(error);
+      message.error('Не удалось загрузить заявки');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const formatDate = (date: string) => dayjs(date).format('DD.MM.YY HH:mm');
-  const formatShiftTime = (date: string) => dayjs(date).format('DD.MM dddd HH:mm');
+  useEffect(() => {
+    fetchActiveRequests();
+  }, []);
+
+  const handleDecision = async (id: number, accept: boolean) => {
+    try {
+      await api.post(`/swap-requests/${id}/resolve`, { accept });
+      message.success(accept ? 'Обмен сменами успешно одобрен' : 'Обмен сменами отклонен');
+      setRequests(prev => prev.filter(req => req.id !== id));
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.detail || 'Ошибка при обработке запроса';
+      message.error(errorMsg);
+    }
+  };
+
+  const formatDate = (date?: string) => date ? dayjs(date).format('DD.MM.YY HH:mm') : '—';
+  const formatShiftTime = (date?: string) => date ? dayjs(date).format('DD.MM dddd HH:mm') : '—';
 
   const columns = [
     { 
@@ -65,7 +70,8 @@ export default function ManagerApprovalsPage() {
     { 
       title: 'Инициатор', 
       dataIndex: ['requesterUser', 'fullName'], 
-      key: 'requesterName' 
+      key: 'requesterName',
+      render: (name?: string) => name || 'Неизвестно'
     },
     { 
       title: 'Смена инициатора', 
@@ -76,7 +82,8 @@ export default function ManagerApprovalsPage() {
     { 
       title: 'Заменяющий (Согласен)', 
       dataIndex: ['targetUser', 'fullName'], 
-      key: 'targetName' 
+      key: 'targetName',
+      render: (name?: string) => name || 'Неизвестно'
     },
     { 
       title: 'Смена заменяющего', 
@@ -88,25 +95,17 @@ export default function ManagerApprovalsPage() {
       title: 'Статус', 
       dataIndex: 'status', 
       key: 'status',
-      render: (status: string) => <Tag color="blue">Ожидает менеджера</Tag>
+      render: () => <Tag color="blue">Ожидает менеджера</Tag>
     },
     { 
       title: 'Решение', 
       key: 'action',
       render: (_: any, record: SwapRequestDetails) => (
         <Space>
-          <Button 
-            type="primary" 
-            size="small"
-            onClick={() => handleDecision(record.id, 'APPROVED')}
-          >
+          <Button type="primary" size="small" onClick={() => handleDecision(record.id, true)}>
             Одобрить
           </Button>
-          <Button 
-            danger 
-            size="small"
-            onClick={() => handleDecision(record.id, 'REJECTED')}
-          >
+          <Button danger size="small" onClick={() => handleDecision(record.id, false)}>
             Отклонить
           </Button>
         </Space>
@@ -122,6 +121,7 @@ export default function ManagerApprovalsPage() {
         columns={columns} 
         pagination={false} 
         rowKey="id"
+        loading={isLoading}
         locale={{ emptyText: 'Нет заявок, ожидающих вашего решения' }}
         scroll={{ x: 'max-content', y: 'calc(100vh - 240px)' }} 
       />
