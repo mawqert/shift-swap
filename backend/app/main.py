@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.database import engine
+from app.models import Base
 from app.routers import user, shift, swap_request
 
+Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Сервис обмена сменами")
 
 app.add_middleware(
