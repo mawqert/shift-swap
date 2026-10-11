@@ -27,7 +27,7 @@ def issue_tokens(user_id: int) -> TokenPair:
 
 def refresh_tokens(db: Session, refresh_token: str) -> TokenPair:
     try:
-        payload = jwt.decode(refresh_token, app_config.JWT_SECRET, algorithms=["HS256"])
+        payload = jwt.decode(refresh_token, app_config.JWT_REFRESH_SECRET, algorithms=["HS256"])
         user_id = payload.get("sub")
         if user_id is None:
             raise HTTPException(

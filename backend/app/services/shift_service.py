@@ -15,8 +15,8 @@ def create_shift(db: Session, shift_in: ShiftCreate) -> Shift:
                 Shift.end_time > shift_in.start_time
             )
         )
-    ).scalar_one_or_none()
-    
+    ).scalars().first()
+
     if overlap:
         raise ValueError("У сотрудника уже есть смена в это время")
         

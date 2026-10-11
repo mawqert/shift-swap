@@ -16,7 +16,7 @@ def _check_shift_overlaps(db: Session, user_id: int, new_shift: Shift, ignored_s
                 Shift.end_time > new_shift.start_time
             )
         )
-    ).scalar_one_or_none()
+    ).scalars().first()
     return bool(overlap)
 
 def create_swap_request(db: Session, requester_id: int, request_in: SwapRequestCreate) -> SwapRequest:

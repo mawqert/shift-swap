@@ -43,6 +43,6 @@ def refresh(data: RefreshRequest, db: Session = Depends(get_db)):
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
-@router.get("/", response_model=list[UserResponse])
-def get_users(db: Session = Depends(get_db)):
+@router.get("", response_model=list[UserResponse])
+def get_employees(_current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return user_service.get_all_employees(db)

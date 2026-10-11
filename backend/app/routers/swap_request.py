@@ -9,7 +9,7 @@ from app.services import swap_service
 
 router = APIRouter(prefix="/swap-requests", tags=["Swap Requests"])
 
-@router.post("/", response_model=SwapRequestResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SwapRequestResponse, status_code=status.HTTP_201_CREATED)
 def create_request(
     request_in: SwapRequestCreate,
     current_user: User = Depends(get_current_user),
@@ -52,11 +52,11 @@ def respond_to_request(
 
 
 @router.get("/manager/active", response_model=list[SwapRequestResponse])
-def get_active_manager_requests(_: User = Depends(require_manager), db: Session = Depends(get_db)):
+def get_active_manager_requests(_manager: User = Depends(require_manager), db: Session = Depends(get_db)):
     return swap_service.get_active_manager_requests(db)
 
 @router.get("/manager/history", response_model=list[SwapRequestResponse])
-def get_manager_history(_: User = Depends(require_manager), db: Session = Depends(get_db)):
+def get_manager_history(_manager: User = Depends(require_manager), db: Session = Depends(get_db)):
     return swap_service.get_manager_resolved_history(db)
 
 @router.post("/{request_id}/resolve", response_model=SwapRequestResponse)
