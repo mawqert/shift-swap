@@ -103,13 +103,7 @@ export default function HistoryPage() {
           {STATUS_CONFIG[status]?.label || status}
         </Tag>
       )
-    },
-    { 
-      title: 'Менеджер', 
-      dataIndex: ['manager', 'fullName'], 
-      key: 'managerName',
-      render: (name?: string) => name || '—'
-    },
+    }
   ];
 
   return (
