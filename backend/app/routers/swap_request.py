@@ -57,7 +57,7 @@ def get_active_manager_requests(_manager: User = Depends(require_manager), db: S
 
 @router.get("/manager/history", response_model=list[SwapRequestResponse])
 def get_manager_history(_manager: User = Depends(require_manager), db: Session = Depends(get_db)):
-    return swap_service.get_manager_resolved_history(db)
+    return swap_service.get_manager_history(db)
 
 @router.post("/{request_id}/resolve", response_model=SwapRequestResponse)
 def resolve_request(

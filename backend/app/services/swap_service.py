@@ -61,11 +61,10 @@ def get_user_request_history(db: Session, user_id: int) -> list[SwapRequest]:
     )
     return list(result.scalars().all())
 
-def get_manager_resolved_history(db: Session) -> list[SwapRequest]:
+def get_manager_history(db: Session) -> list[SwapRequest]:
     result = db.execute(
         select(SwapRequest)
         .where(SwapRequest.status.in_([SwapRequestStatus.APPROVED, SwapRequestStatus.REJECTED]))
-        .where(SwapRequest.manager_id.isnot(None))
         .order_by(SwapRequest.created_at.desc())
     )
     return list(result.scalars().all())
